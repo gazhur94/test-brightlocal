@@ -10,7 +10,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 } else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     echo $result->setNewValue($_POST['key'], $_POST['value']);
 } else if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
-    echo $result->deleteValueByKey($_POST['key']);
+    //get data from delete request
+    $input = file_get_contents("php://input");
+    $key = stristr($input, $input[strpos($input, '=')+1]);
+
+    echo $result->deleteValueByKey($key);
 } else {
     echo json_encode(["error" => "not found"]);
 }

@@ -7,11 +7,19 @@ use PDOException;
 class Result
 {
     private $pdo;
+    private $errors = [];
+    private $success = [];
 
     public function __construct()
     {
         try {
             $this->pdo = new PDO('mysql:host=localhost;dbname=test', 'root', '');
+            $res = $this->pdo->query("SELECT count(id) as count FROM storage");
+            if (intval($res->fetch(PDO::FETCH_ASSOC)['count']) > 2) {
+                $this->errors[] = "Storage is full";
+                $this->response();
+                die();
+            }
         } catch (PDOException $e) {
             echo json_encode(["error" => $e->getMessage()]);
             die();
@@ -20,29 +28,64 @@ class Result
 
     public function getValueByKey($key)
     {
+        $exists = $this->pdo->query("SELECT value_ FROM storage WHERE key_ = '$key' LIMIT 1");
+        $result = $exists->fetch(PDO::FETCH_ASSOC);
 
+        if(!$result) {
+            $this->errors[] =  "Key not exists: ".$key;
+        } else {
+            $this->success = ["value" => $result['value_']];
+        }
+
+        return $this->response();
     }
 
     public function setNewValue($key, $value)
     {
         $exists = $this->pdo->query("SELECT key_ FROM storage WHERE key_ = '$key'");
-
         if($exists->fetch()) {
-            return json_encode(["error" => "Dublicate key: ".$key]);
+            $this->errors[] = "Dublicate key: ".$key;
+        }
+
+        if (strlen($key)  >= 16) {
+            $this->errors[] = "Too long key length";
         }
 
         $res = $this->pdo->prepare("INSERT INTO storage (key_, value_) VALUES ('$key', '$value')");
-
         if ($res->execute()) {
-            return json_encode(["result" => "success"]);
+            $this->success = ["status" => "success"];
         } else {
-            http_response_code(400);
-            return json_encode(["error" => "error"]);
+            $this->errors[] = "Problems with database connection";
         }
+        return $this->response();
     }
 
     public function deleteValueByKey($key)
     {
-        //
+        $exists = $this->pdo->query("SELECT key_ FROM storage WHERE key_ = '$key'");
+        if(!$exists->fetch()) {
+            $this->errors[] =  "Key not exists: ".$key;
+        }
+
+        $res = $this->pdo->prepare("DELETE FROM storage WHERE key_ = '$key'");
+
+
+        if ($res->execute()) {
+            $this->success = ["status" => "success"];
+        } else {
+            $this->errors[] = "Problems with database connection";
+        }
+
+        return $this->response();
+    }
+
+    private function response()
+    {
+        if (count($this->errors) > 0) {
+            http_response_code(400);
+            echo json_encode(["error" => $this->errors[0]]);
+        } else {
+            echo json_encode($this->success);
+        }
     }
 }
