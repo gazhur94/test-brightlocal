@@ -45,10 +45,12 @@ class Result
         $exists = $this->pdo->query("SELECT key_ FROM storage WHERE key_ = '$key'");
         if($exists->fetch()) {
             $this->errors[] = "dublicate key: ".$key;
+            return $this->response();
         }
 
         if (strlen($key)  >= 16) {
             $this->errors[] = "key too long";
+            return $this->response();
         }
 
         $res = $this->pdo->prepare("INSERT INTO storage (key_, value_) VALUES ('$key', '$value')");
@@ -65,6 +67,7 @@ class Result
         $exists = $this->pdo->query("SELECT key_ FROM storage WHERE key_ = '$key'");
         if(!$exists->fetch()) {
             $this->errors[] =  "key not exists: ".$key;
+            return $this->response();
         }
 
         $res = $this->pdo->prepare("DELETE FROM storage WHERE key_ = '$key'");
